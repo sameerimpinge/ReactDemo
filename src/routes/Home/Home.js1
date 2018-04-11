@@ -1,0 +1,269 @@
+/**
+ * React Starter Kit for Firebase and GraphQL
+ * https://github.com/kriasoft/react-firebase-starter
+ * Copyright (c) 2015-present Kriasoft | MIT License
+ */
+
+/* @flow */
+import GoogleMapReact from 'google-map-react';
+import React from 'react';
+import styled from 'styled-components';
+import Card from 'material-ui/Card';
+import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
+import Typography from 'material-ui/Typography';
+import Checkbox from 'material-ui/Checkbox';
+import Grid from 'material-ui/Grid';
+import Tabs, { Tab } from 'material-ui/Tabs';
+import mapImg from '../../images/map.png';
+import firebase from '@firebase/app';
+import Database from '@firebase/database';
+import './Home.css';
+import Table, {
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableFooter,
+  TableSortLabel,
+  TablePagination,
+} from 'material-ui/Table';
+const Container = styled.div`
+  max-width: 1100px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  color: rgb(231, 220, 220);
+`;
+const customCheckbox = {
+  borderRadius: '6px',
+  backgroundColor: '#3fa2f7',
+};
+const Content = styled(Card)`
+  padding: 1em 2em;
+  margin: 2em 0;
+`;
+let id = 0;
+//  var data = [];
+function createData(parcel, status, package_size, delivery_time, add_to_my) {
+  id += 1;
+  return { id, parcel, status, package_size, delivery_time, add_to_my };
+}
+
+var app = firebase.app();
+var database = firebase.database(app);
+var data1 = firebase.database().ref('v1/order');
+
+const AnyReactComponent = ({ text }) => <div>{ text }</div>; 
+class Home extends React.Component<{}> {
+  static defaultProps = { 
+    center: { lat: 40.7446790, lng : -73.9485420}, 
+    zoom: 11 }
+  constructor(props) {
+    super(props);
+    this.state = {
+      showPopUp: true,
+      page: 1,
+      data: [],
+      points : {}
+    };
+    this.showMapDiv = this.showMapDiv.bind(this);
+  }
+  componentWillMount() {
+    var orderlist = firebase.database().ref('v1/order');
+    orderlist.on('value', snapshot => {
+      var returnArr = [];
+      snapshot.forEach(function(childSnapshot) {
+        var item = childSnapshot.val();
+        item.key = childSnapshot.key;
+        item.showmap = false;
+        item.points = {};
+        item.lng =0;
+        item.lat =0;
+        returnArr.push(item);
+
+      });
+      this.setState({ data: returnArr });
+    });
+  }
+  componentDidMount() {
+   
+  }
+
+  showMapDiv = (event) => {
+    console.log('hello');
+    this.setState({page : 1})
+    var center = {}
+    var data = this.state; 
+    if(event.showmap == false){
+      var orderlocation = firebase.database().ref('order_location/'+event.key+'/');
+    orderlocation.on('value',snapshot => {
+      var a = snapshot.toJSON();
+      var points = a.l
+      center.lat = points[0]
+      center.lng = points[1]
+      this.setState({points: center})
+      // console.log(this.state.points)
+      data.data.map((value)=> { if(value.key==event.key){
+      console.log(value.key,this.state.page,this.state.points)
+      value.lat = this.state.points.lat
+      value.lng = this.state.points.lng
+      value.points =  { lat: this.state.points.lat, lng : this.state.points.lat}
+      value.showmap = !value.showmap;
+    }})
+    })
+
+    }
+    else {
+      data.data.map((value)=> { if(value.key==event.key){
+      console.log(value.key,this.state.page,this.state.points)
+      value.showmap = !value.showmap;
+    }})
+      
+    }
+  };
+  renderMarkers(map, maps,n) {
+    debugger
+     let marker = new maps.Marker(
+       { 
+         position: { lat: 40.7446790, lng : -73.9485420}, 
+         map, 
+         title: 'Delivery Point.' 
+        }
+      );
+  }
+  handleChangePage = (event, page) => {
+    this.setState({ page });
+  };
+  render() {
+    let reactThis = this;
+    // this.showMapDiv=this.showMapDiv.bind(this);
+    const {
+      onSelectAllClick,
+      order,
+      orderBy,
+      numSelected,
+      rowCount,
+    } = this.props;
+    return (
+      <Container>
+        <div className="top-heading">
+          <span> Parcels</span>
+          <div style={{ float: 'Right' }}>
+            <a className="tab-link active">All</a>
+            <a className="tab-link">Late</a>
+            <a className="tab-link">Ontime</a>
+            <a className="tab-link">My parcels</a>
+          </div>
+        </div>
+        <Table className="custom-table">
+          <TableHead className="Greenbackground">
+            <TableRow>
+              <TableCell>
+                {' '}
+                <TableSortLabel>ParcelsN</TableSortLabel>
+              </TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell> Package Size</TableCell>
+              <TableCell>Expected Delivery time</TableCell>
+              <TableCell>Add to my</TableCell>
+              <TableCell>Add Note </TableCell>
+              <TableCell> </TableCell>
+            </TableRow>
+          </TableHead>
+          {this.state.data.map(n => {
+            return (
+              <TableBody key={n.key}>
+                <TableRow>
+                  <TableCell style={{ width: '100px' }}>{n.key}</TableCell>
+                  <TableCell>
+                    {n.showmap}
+                    <span className={'status ' + n.status}>{n.status}</span>
+                  </TableCell>
+                  <TableCell>
+                    {n.size == 0 ? <span className="badge">S</span> : ''}
+                    {n.size == 1 ? <span className="badge">M</span> : ''}
+                    {n.size == 2 ? <span className="badge">L</span> : ''}
+                  </TableCell>
+                  <TableCell>
+                    <span className="icon">
+                      <i className="fa fa-calendar"> </i> {n.deliveryTime}{' '}
+                    </span>&nbsp; &nbsp; &nbsp;
+                    <span className="icon">
+                      {' '}<i className="fa fa-clock-o" /> 12:30
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="custom-checkbox">
+                      <input id={'checkBox' + n.id} type="checkbox" />
+                      <label htmlFor={'checkBox' + n.id} />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <i className="fa fa-comment" />
+                  </TableCell>
+                  <TableCell>
+                  {n.showmap == false ? ( <i
+                      className="fa fa-chevron-down"
+                      aria-hidden="true"
+                      onClick={reactThis.showMapDiv.bind(reactThis, n)}>
+                    </i>) :(
+                    <i className="fa fa-chevron-up" 
+                      aria-hidden="true" 
+                      onClick={reactThis.showMapDiv.bind(reactThis, n)}> 
+                    </i>)}
+                  </TableCell>
+                </TableRow>
+                {n.showmap == true ? (
+                  <TableRow
+                    className={
+                      reactThis.state.showPopUp == true ? 'show-row' : 'hide'
+                    }
+                  >
+                    <TableCell colSpan={7} className="map-content">
+                      <div className="map-details">
+                      <div className="delivery-type">Delievery Type: &nbsp; &nbsp;<b>Eco</b> &nbsp; &nbsp; <sup>$</sup><b className="amount">{n.price}</b> <span className="refund-text">Refund</span></div>
+                        <button className="map-status">Put On Hold</button>
+                      </div>
+                      {/* <img src={mapImg} width="100%" /> */}
+                      <div className='google-map'> 
+                      <GoogleMapReact
+                        bootstrapURLKeys={{ key: "AIzaSyDXC-VDfNvIbIdRmvznzQjKyzlJgIvlvo0" }}
+                        defaultCenter={reactThis.props.center}
+                        center={{ lat: n.lat, lng : n.lng}}
+                        defaultZoom={reactThis.props.zoom}
+                        yesIWantToUseGoogleMapApiInternals={true}
+                        onGoogleApiLoaded={({map, maps,n}) => this.renderMarkers(map, maps,n)}
+                        style={{height: '200px'}}
+                      >
+                    <AnyReactComponent
+                      lat={n.lat}
+                      lng={n.lng}
+                      text={'Google Map'}
+                    />
+                  </GoogleMapReact>
+                       </div>
+                    </TableCell>
+                  </TableRow>
+                ) : ('')}
+              </TableBody>
+            );
+          })}
+
+          {/* <Table className="custom-table"> */}
+          <TableFooter className="Greenbackground">
+            <TableRow>
+              <TablePagination
+                colSpan={12}
+                count={1}
+                rowsPerPage={5}
+                page={this.state.page}
+                onChangePage={this.handleChangePage}
+              />
+            </TableRow>
+          </TableFooter>
+        </Table>
+      </Container>
+    );
+  }
+}
+
+export default Home;
